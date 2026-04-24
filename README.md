@@ -78,7 +78,38 @@ print(wrapped.last_report)
 pytest -q
 ```
 
+## Production Baseline
+
+1. Architecture: `ARCHITECTURE.md`
+2. Contribution guide: `CONTRIBUTING.md`
+3. Security policy: `SECURITY.md`
+4. Changelog: `CHANGELOG.md`
+5. Collaboration context: `.claude/CLAUDE.md`
+6. API docs: `docs/API.md`
+7. Deployment docs: `docs/DEPLOYMENT.md`
+8. Testing docs: `docs/TESTING.md`
+9. CI workflow: `.github/workflows/ci.yml`
+10. Release workflow: `.github/workflows/release.yml`
+
+## Evidence
+
+1. Deterministic unit tests cover relevance, redundancy, conflict, filtering, wrapper behavior, and report output.
+2. CI validates test execution and dependency audit checks on `main` and pull requests.
+3. Release workflow enforces test pass before GitHub release creation.
+
 ## Notes
 
 - If sentence-transformers or transformers models are unavailable, the library falls back to deterministic local heuristics so pipelines can still run.
 - Thresholds are tunable to match strictness for different workloads.
+
+## Limitations
+
+1. Contradiction scoring quality depends on the selected NLI model and available resources.
+2. Deterministic fallback embeddings are robust for reliability but less semantically rich than transformer embeddings.
+3. This library does not provide built-in persistence or telemetry storage.
+
+## Next Roadmap
+
+1. Add optional batch-processing helpers for high-throughput retrieval pipelines.
+2. Add configurable report exporters (JSON and markdown artifact output).
+3. Extend integration adapters for additional retriever interfaces.
