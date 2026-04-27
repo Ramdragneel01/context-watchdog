@@ -7,11 +7,12 @@ from dataclasses import dataclass
 from io import StringIO
 from typing import Any, List
 
+import pytest
 from rich.console import Console
 
 from integrations.langchain_wrapper import LangChainWatchdogRetriever
 from src.report import render_report
-from src.watchdog import ContextWatchdog
+from src.watchdog import ContextWatchdog, Thresholds
 
 
 class FakeEmbeddingModel:
@@ -196,3 +197,52 @@ def test_render_report_produces_table_output() -> None:
     output = buffer.getvalue()
     assert "Input chunks" in output
     assert "Per-Chunk Quality" in output
+
+
+def test_thresholds_reject_out_of_range_values() -> None:
+    """Ensures invalid threshold values are rejected before filtering starts."""
+
+    with pytest.raises(ValueError):
+        Thresholds.from_mapping({"relevance_min": 1.1})
+
+
+def test_filter_rejects_chunk_lists_above_max_chunks() -> None:
+    """Ensures large chunk lists are rejected to cap worst-case runtime costs."""
+
+    watchdog = ContextWatchdog(
+        embedding_model=FakeEmbeddingModel(),
+        contradiction_classifier=FakeContradictionClassifier(),
+        max_chunks=2,
+    )
+
+    with pytest.raises(ValueError):
+        watchdog.filter(
+            "database timeout guidance",
+            [
+                "chunk one",
+                "chunk two",
+                "chunk three",
+            ],
+        )
+
+
+def test_filter_truncates_overly_long_chunk_text() -> None:
+    """Ensures chunk text is normalized to configured max length for stability."""
+
+    watchdog = ContextWatchdog(
+        embedding_model=FakeEmbeddingModel(),
+        contradiction_classifier=FakeContradictionClassifier(),
+        max_chunk_chars=24,
+    )
+
+    filtered, report = watchdog.filter(
+        "database timeout guidance",
+        [
+            "Database timeout can be reduced with indexing and careful retry tuning.",
+        ],
+        thresholds={"relevance_min": 0.0, "redundancy_max": 0.99, "conflict_min": 0.99},
+    )
+
+    assert filtered
+    assert len(filtered[0]) <= 24
+    assert len(report["chunks"][0]["text"]) <= 24

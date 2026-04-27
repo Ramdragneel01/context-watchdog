@@ -32,11 +32,31 @@ class Thresholds:
     def from_mapping(cls, values: Optional[Mapping[str, float]]) -> "Thresholds":
         """Creates a threshold object from an optional mapping input."""
         values = values or {}
-        return cls(
-            relevance_min=float(values.get("relevance_min", cls.relevance_min)),
-            redundancy_max=float(values.get("redundancy_max", cls.redundancy_max)),
-            conflict_min=float(values.get("conflict_min", cls.conflict_min)),
+        relevance_min = cls._validate_unit_interval(
+            "relevance_min",
+            float(values.get("relevance_min", cls.relevance_min)),
         )
+        redundancy_max = cls._validate_unit_interval(
+            "redundancy_max",
+            float(values.get("redundancy_max", cls.redundancy_max)),
+        )
+        conflict_min = cls._validate_unit_interval(
+            "conflict_min",
+            float(values.get("conflict_min", cls.conflict_min)),
+        )
+        return cls(
+            relevance_min=relevance_min,
+            redundancy_max=redundancy_max,
+            conflict_min=conflict_min,
+        )
+
+    @staticmethod
+    def _validate_unit_interval(name: str, value: float) -> float:
+        """Validates that a threshold value falls within the 0..1 interval."""
+
+        if value < 0.0 or value > 1.0:
+            raise ValueError(f"{name} must be between 0.0 and 1.0")
+        return value
 
 
 class ContextWatchdog:
@@ -48,21 +68,37 @@ class ContextWatchdog:
         contradiction_model_name: str = "facebook/bart-large-mnli",
         embedding_model: Optional[Any] = None,
         contradiction_classifier: Optional[Any] = None,
+        max_chunks: int = 200,
+        max_query_chars: int = 2000,
+        max_chunk_chars: int = 4000,
     ) -> None:
         """Initializes the watchdog with optional model overrides for testability."""
+
+        if max_chunks < 1:
+            raise ValueError("max_chunks must be greater than or equal to 1")
+        if max_query_chars < 3:
+            raise ValueError("max_query_chars must be greater than or equal to 3")
+        if max_chunk_chars < 1:
+            raise ValueError("max_chunk_chars must be greater than or equal to 1")
+
         self.embedding_model_name = embedding_model_name
         self.contradiction_model_name = contradiction_model_name
+        self.max_chunks = max_chunks
+        self.max_query_chars = max_query_chars
+        self.max_chunk_chars = max_chunk_chars
         self._embedding_model = embedding_model
         self._contradiction_classifier = contradiction_classifier
 
     def score_relevance(self, query: str, chunks: Sequence[str]) -> List[float]:
         """Returns a 0-1 relevance score per chunk based on cosine similarity."""
-        if not chunks:
-            return []
-        if not query.strip():
-            return [0.0 for _ in chunks]
+        sanitized_query, sanitized_chunks = self._sanitize_inputs(query, chunks)
 
-        vectors = self._encode_texts([query, *chunks])
+        if not sanitized_chunks:
+            return []
+        if not sanitized_query:
+            return [0.0 for _ in sanitized_chunks]
+
+        vectors = self._encode_texts([sanitized_query, *sanitized_chunks])
         query_vector = vectors[0]
         chunk_vectors = vectors[1:]
         return [self._to_unit_interval(self._cosine_similarity(query_vector, vector)) for vector in chunk_vectors]
@@ -73,16 +109,21 @@ class ContextWatchdog:
         similarity_threshold: float = 0.85,
     ) -> Dict[str, Any]:
         """Calculates a pairwise similarity matrix and flags redundant chunk pairs."""
-        size = len(chunks)
+        normalized_threshold = Thresholds._validate_unit_interval(
+            "similarity_threshold",
+            float(similarity_threshold),
+        )
+        sanitized_chunks = self._sanitize_chunks(chunks)
+        size = len(sanitized_chunks)
         if size == 0:
             return {
                 "matrix": [],
                 "redundant_pairs": [],
                 "redundant_indices": [],
-                "threshold": similarity_threshold,
+                "threshold": normalized_threshold,
             }
 
-        vectors = self._encode_texts(chunks)
+        vectors = self._encode_texts(sanitized_chunks)
         matrix = [[1.0 if i == j else 0.0 for j in range(size)] for i in range(size)]
         redundant_pairs: List[Dict[str, Any]] = []
 
@@ -93,7 +134,7 @@ class ContextWatchdog:
                 )
                 matrix[left][right] = similarity
                 matrix[right][left] = similarity
-                if similarity >= similarity_threshold:
+                if similarity >= normalized_threshold:
                     redundant_pairs.append(
                         {"left": left, "right": right, "similarity": round(similarity, 4)}
                     )
@@ -107,7 +148,7 @@ class ContextWatchdog:
             "matrix": matrix,
             "redundant_pairs": redundant_pairs,
             "redundant_indices": redundant_indices,
-            "threshold": similarity_threshold,
+            "threshold": normalized_threshold,
         }
 
     def score_conflict(
@@ -116,13 +157,18 @@ class ContextWatchdog:
         conflict_threshold: float = 0.70,
     ) -> Dict[str, Any]:
         """Detects conflicting chunk pairs using zero-shot NLI with heuristic fallback."""
-        size = len(chunks)
+        normalized_threshold = Thresholds._validate_unit_interval(
+            "conflict_threshold",
+            float(conflict_threshold),
+        )
+        sanitized_chunks = self._sanitize_chunks(chunks)
+        size = len(sanitized_chunks)
         if size == 0:
             return {
                 "matrix": [],
                 "conflict_pairs": [],
                 "conflict_indices": [],
-                "threshold": conflict_threshold,
+                "threshold": normalized_threshold,
             }
 
         classifier = self._get_contradiction_classifier()
@@ -134,16 +180,16 @@ class ContextWatchdog:
                 if classifier is not None:
                     score = self._classifier_contradiction_score(
                         classifier,
-                        chunks[left],
-                        chunks[right],
+                        sanitized_chunks[left],
+                        sanitized_chunks[right],
                     )
                 else:
-                    score = self._heuristic_conflict_score(chunks[left], chunks[right])
+                    score = self._heuristic_conflict_score(sanitized_chunks[left], sanitized_chunks[right])
 
                 matrix[left][right] = score
                 matrix[right][left] = score
 
-                if score >= conflict_threshold:
+                if score >= normalized_threshold:
                     conflict_pairs.append(
                         {"left": left, "right": right, "conflict_score": round(score, 4)}
                     )
@@ -157,7 +203,7 @@ class ContextWatchdog:
             "matrix": matrix,
             "conflict_pairs": conflict_pairs,
             "conflict_indices": conflict_indices,
-            "threshold": conflict_threshold,
+            "threshold": normalized_threshold,
         }
 
     def filter(
@@ -167,23 +213,24 @@ class ContextWatchdog:
         thresholds: Optional[Mapping[str, float]] = None,
     ) -> Tuple[List[str], Dict[str, Any]]:
         """Filters chunks using relevance, redundancy, and conflict constraints."""
+        sanitized_query, sanitized_chunks = self._sanitize_inputs(query, chunks)
         resolved = Thresholds.from_mapping(thresholds)
 
-        relevance_scores = self.score_relevance(query, chunks)
-        redundancy_report = self.score_redundancy(chunks, resolved.redundancy_max)
-        conflict_report = self.score_conflict(chunks, resolved.conflict_min)
+        relevance_scores = self.score_relevance(sanitized_query, sanitized_chunks)
+        redundancy_report = self.score_redundancy(sanitized_chunks, resolved.redundancy_max)
+        conflict_report = self.score_conflict(sanitized_chunks, resolved.conflict_min)
 
         redundancy_matrix = redundancy_report["matrix"]
         conflict_matrix = conflict_report["matrix"]
 
         ranked_indices = sorted(
-            range(len(chunks)),
+            range(len(sanitized_chunks)),
             key=lambda idx: relevance_scores[idx],
             reverse=True,
         )
 
         selected: List[int] = []
-        reasons_by_chunk: Dict[int, List[str]] = {idx: [] for idx in range(len(chunks))}
+        reasons_by_chunk: Dict[int, List[str]] = {idx: [] for idx in range(len(sanitized_chunks))}
 
         for idx in ranked_indices:
             if relevance_scores[idx] < resolved.relevance_min:
@@ -214,10 +261,10 @@ class ContextWatchdog:
 
         selected_set = set(selected)
         selected_sorted = sorted(selected)
-        cleaned_chunks = [chunks[idx] for idx in selected_sorted]
+        cleaned_chunks = [sanitized_chunks[idx] for idx in selected_sorted]
 
         chunk_breakdown = []
-        for idx, chunk in enumerate(chunks):
+        for idx, chunk in enumerate(sanitized_chunks):
             chunk_breakdown.append(
                 {
                     "index": idx,
@@ -231,16 +278,16 @@ class ContextWatchdog:
             )
 
         report: Dict[str, Any] = {
-            "query": query,
+            "query": sanitized_query,
             "thresholds": {
                 "relevance_min": resolved.relevance_min,
                 "redundancy_max": resolved.redundancy_max,
                 "conflict_min": resolved.conflict_min,
             },
             "summary": {
-                "input_chunks": len(chunks),
+                "input_chunks": len(sanitized_chunks),
                 "kept_chunks": len(cleaned_chunks),
-                "dropped_chunks": len(chunks) - len(cleaned_chunks),
+                "dropped_chunks": len(sanitized_chunks) - len(cleaned_chunks),
             },
             "scores": {
                 "relevance": [round(score, 4) for score in relevance_scores],
@@ -254,6 +301,32 @@ class ContextWatchdog:
         }
 
         return cleaned_chunks, report
+
+    def _sanitize_inputs(self, query: str, chunks: Sequence[str]) -> Tuple[str, List[str]]:
+        """Normalizes query and chunks while enforcing configured input limits."""
+
+        return self._sanitize_query(query), self._sanitize_chunks(chunks)
+
+    def _sanitize_query(self, query: str) -> str:
+        """Normalizes and bounds query text to reduce unbounded compute costs."""
+
+        return self._normalize_text(query, self.max_query_chars)
+
+    def _sanitize_chunks(self, chunks: Sequence[str]) -> List[str]:
+        """Normalizes chunk text and enforces a maximum chunk count."""
+
+        if len(chunks) > self.max_chunks:
+            raise ValueError(f"chunks cannot exceed max_chunks={self.max_chunks}")
+        return [self._normalize_text(chunk, self.max_chunk_chars) for chunk in chunks]
+
+    @staticmethod
+    def _normalize_text(text: str, max_chars: int) -> str:
+        """Collapses whitespace and truncates text to the configured maximum length."""
+
+        normalized = re.sub(r"\s+", " ", str(text)).strip()
+        if len(normalized) <= max_chars:
+            return normalized
+        return normalized[:max_chars].rstrip()
 
     def _get_embedding_model(self) -> Optional[Any]:
         """Lazily loads the sentence-transformers model when available."""
