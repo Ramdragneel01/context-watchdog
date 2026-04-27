@@ -13,6 +13,14 @@ context-watchdog is distributed as a Python library and can be deployed inside a
 pip install -r requirements.txt
 ```
 
+## Build and Install Distribution Artifacts
+
+```bash
+python -m pip install --upgrade build
+python -m build --sdist --wheel
+pip install dist/context_watchdog-*.whl
+```
+
 ## Recommended Runtime Practices
 
 1. Pin dependency versions in production lock files.
@@ -28,6 +36,13 @@ pip install -r requirements.txt
 ```bash
 pytest -q
 ```
+
+## Release Artifacts
+
+Release workflow now publishes Python package artifacts:
+
+1. source distribution (`.tar.gz`)
+2. wheel (`.whl`)
 
 ## Optional Configuration
 

@@ -18,8 +18,17 @@ ContextWatchdog(
     contradiction_model_name: str = "facebook/bart-large-mnli",
     embedding_model: Any | None = None,
     contradiction_classifier: Any | None = None,
+    max_chunks: int = 200,
+    max_query_chars: int = 2000,
+    max_chunk_chars: int = 4000,
 )
 ```
+
+Input bounds:
+
+1. `max_chunks` caps the number of chunks accepted in one call.
+2. `max_query_chars` caps query text length after normalization.
+3. `max_chunk_chars` caps each chunk length after normalization.
 
 ### Methods
 
@@ -50,6 +59,11 @@ Fields:
 3. `conflict_min`
 
 Use `Thresholds.from_mapping(...)` to parse user-provided threshold mappings safely.
+
+Threshold validation:
+
+1. `relevance_min`, `redundancy_max`, and `conflict_min` must be in `[0.0, 1.0]`.
+2. Invalid threshold values raise `ValueError`.
 
 ## `render_report`
 

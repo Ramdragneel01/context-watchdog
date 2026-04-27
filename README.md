@@ -27,6 +27,12 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
+Install as a package (recommended for production release artifacts):
+
+```bash
+pip install .
+```
+
 ## Quick Start
 
 ```python
@@ -101,6 +107,16 @@ pytest -q
 
 - If sentence-transformers or transformers models are unavailable, the library falls back to deterministic local heuristics so pipelines can still run.
 - Thresholds are tunable to match strictness for different workloads.
+
+## Production Hardening Controls
+
+`ContextWatchdog` supports runtime input bounds to prevent unbounded processing:
+
+1. `max_chunks` (default: `200`)
+2. `max_query_chars` (default: `2000`)
+3. `max_chunk_chars` (default: `4000`)
+
+Threshold values are validated and must be in the range `[0.0, 1.0]`.
 
 ## Limitations
 
