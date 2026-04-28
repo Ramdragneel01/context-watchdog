@@ -17,6 +17,13 @@ The test suite validates deterministic behavior for:
 pytest -q
 ```
 
+## Build Validation
+
+```bash
+python -m pip install --upgrade build
+python -m build --sdist --wheel
+```
+
 ## Test Design Principles
 
 1. No network dependency in tests.

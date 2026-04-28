@@ -16,7 +16,8 @@ Lightweight guardrail library to score and filter RAG context chunks before an L
 - `src/policies.py`: preset policy recipes for common adoption contexts.
 - `src/report.py`: rich terminal report renderer.
 - `integrations/langchain_wrapper.py`: retriever wrapper.
-- `tests/test_watchdog.py`: deterministic pytest suite with mocked models.
+- `tests/test_watchdog.py`: deterministic watchdog scoring and filtering tests.
+- `tests/test_policies.py`: policy recipe coverage tests.
 
 ## Requirements
 
@@ -28,10 +29,24 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
-Install as a package (recommended for production release artifacts):
+Install from source (recommended for production release artifacts):
 
 ```bash
 pip install .
+```
+
+Install editable for local development:
+
+```bash
+pip install -e .[dev]
+```
+
+Build and install wheel artifacts:
+
+```bash
+python -m pip install --upgrade build
+python -m build --sdist --wheel
+pip install dist/context_watchdog-*.whl
 ```
 
 ## Quick Start
@@ -113,6 +128,12 @@ python scripts/benchmark_policies.py --iterations 300
 
 ```bash
 pytest -q
+```
+
+Packaging validation:
+
+```bash
+python -m build --sdist --wheel
 ```
 
 ## Production Baseline
