@@ -96,6 +96,19 @@ cleaned_chunks, report = watchdog.filter(query, chunks, thresholds=thresholds)
 
 Detailed recipe guide: `docs/POLICY-RECIPES.md`.
 
+## Compatibility and Benchmark Evidence
+
+Compatibility matrix and policy benchmark table:
+
+1. `docs/COMPATIBILITY-BENCHMARKS.md`
+2. `docs/reports/policy-benchmark-summary.json`
+
+Reproduce benchmark summary:
+
+```bash
+python scripts/benchmark_policies.py --iterations 300
+```
+
 ## Running Tests
 
 ```bash

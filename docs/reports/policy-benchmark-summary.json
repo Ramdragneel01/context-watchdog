@@ -1,0 +1,38 @@
+{
+  "measuredAt": "2026-04-28T11:47:49.750703+00:00",
+  "pythonVersion": "3.14.2",
+  "platform": "Windows-11-10.0.22631-SP0",
+  "iterationsPerRecipe": 300,
+  "results": {
+    "offline-batch": {
+      "iterations": 300,
+      "avgMs": 0.632,
+      "p50Ms": 0.499,
+      "p95Ms": 1.271,
+      "minMs": 0.4,
+      "maxMs": 2.048,
+      "avgKeptChunks": 4.0,
+      "inputChunks": 12
+    },
+    "realtime-support": {
+      "iterations": 300,
+      "avgMs": 0.522,
+      "p50Ms": 0.457,
+      "p95Ms": 0.864,
+      "minMs": 0.4,
+      "maxMs": 1.482,
+      "avgKeptChunks": 4.0,
+      "inputChunks": 12
+    },
+    "regulated-evidence": {
+      "iterations": 300,
+      "avgMs": 0.502,
+      "p50Ms": 0.45,
+      "p95Ms": 0.793,
+      "minMs": 0.4,
+      "maxMs": 1.364,
+      "avgKeptChunks": 2.0,
+      "inputChunks": 12
+    }
+  }
+}
