@@ -13,6 +13,7 @@ Lightweight guardrail library to score and filter RAG context chunks before an L
 ## Project Layout
 
 - `src/watchdog.py`: core scoring and filter pipeline.
+- `src/policies.py`: preset policy recipes for common adoption contexts.
 - `src/report.py`: rich terminal report renderer.
 - `integrations/langchain_wrapper.py`: retriever wrapper.
 - `tests/test_watchdog.py`: deterministic pytest suite with mocked models.
@@ -77,6 +78,23 @@ wrapped = LangChainWatchdogRetriever(
 docs = wrapped.get_relevant_documents("How can I reduce database timeout errors?")
 print(wrapped.last_report)
 ```
+
+## Policy Recipe Presets
+
+Use one of three built-in policy contexts to adopt quickly:
+
+1. `realtime-support`
+2. `regulated-evidence`
+3. `offline-batch`
+
+```python
+from src.policies import create_policy_watchdog
+
+watchdog, thresholds = create_policy_watchdog("regulated-evidence")
+cleaned_chunks, report = watchdog.filter(query, chunks, thresholds=thresholds)
+```
+
+Detailed recipe guide: `docs/POLICY-RECIPES.md`.
 
 ## Running Tests
 

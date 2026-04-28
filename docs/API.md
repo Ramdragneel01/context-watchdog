@@ -65,6 +65,31 @@ Threshold validation:
 1. `relevance_min`, `redundancy_max`, and `conflict_min` must be in `[0.0, 1.0]`.
 2. Invalid threshold values raise `ValueError`.
 
+## Policy Recipes
+
+Import:
+
+```python
+from src.policies import create_policy_watchdog, get_policy_recipe, list_policy_recipes
+```
+
+Recipe contexts:
+
+1. `realtime-support`
+2. `regulated-evidence`
+3. `offline-batch`
+
+Helpers:
+
+1. `list_policy_recipes() -> tuple[str, ...]`
+- Lists supported policy names in stable order.
+
+2. `get_policy_recipe(name: str) -> PolicyRecipe`
+- Returns thresholds and input limits for one context recipe.
+
+3. `create_policy_watchdog(name: str, threshold_overrides=None) -> tuple[ContextWatchdog, dict]`
+- Returns a configured watchdog instance and an explicit thresholds mapping for `filter(...)`.
+
 ## `render_report`
 
 Import:
