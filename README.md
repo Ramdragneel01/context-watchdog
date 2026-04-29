@@ -139,6 +139,12 @@ Reproduce benchmark summary:
 python scripts/benchmark_policies.py --iterations 300
 ```
 
+## Week 11 Measured Outcomes
+
+1. Before and after outcomes are documented in `docs/WEEK11_MEASURED_OUTCOMES.md`.
+2. Reliability evidence captures checklist continuity, docs growth, workflow growth, and test-surface increase.
+3. Latency evidence uses the benchmark summary in `docs/reports/policy-benchmark-summary.json`.
+
 ## Running Tests
 
 ```bash
