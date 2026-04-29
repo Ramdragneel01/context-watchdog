@@ -10,6 +10,21 @@ Lightweight guardrail library to score and filter RAG context chunks before an L
 - Returns a cleaned chunk list plus a structured diagnostics report.
 - Wraps LangChain retrievers as a drop-in quality gate.
 
+## Architecture Snapshot
+
+```mermaid
+flowchart LR
+    Retriever[Retriever output chunks] --> Watchdog[ContextWatchdog]
+    Query[User query] --> Watchdog
+    Watchdog --> Relevance[Relevance scoring]
+    Watchdog --> Redundancy[Redundancy scoring]
+    Watchdog --> Conflict[Conflict scoring]
+    Relevance --> Filter[Threshold filter]
+    Redundancy --> Filter
+    Conflict --> Filter
+    Filter --> Cleaned[Cleaned chunks + diagnostics report]
+```
+
 ## Project Layout
 
 - `src/watchdog.py`: core scoring and filter pipeline.
@@ -129,6 +144,12 @@ python scripts/benchmark_policies.py --iterations 300
 ```bash
 pytest -q
 ```
+
+## Testing
+
+1. Unit tests cover deterministic scoring and filtering behavior (`tests/test_watchdog.py`).
+2. Policy recipe coverage verifies recipe lookup, overrides, and watchdog bounds (`tests/test_policies.py`).
+3. Release validation includes package build checks via `python -m build --sdist --wheel`.
 
 Packaging validation:
 
