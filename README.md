@@ -2,6 +2,10 @@
 
 Lightweight guardrail library to score and filter RAG context chunks before an LLM call.
 
+## Visual Evidence
+
+![context-watchdog filter demo](docs/assets/demo-terminal.png)
+
 ## What It Does
 
 - Scores per-chunk relevance against the user query.
